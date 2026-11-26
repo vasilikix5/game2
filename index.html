@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <title>Phaser Simple Game - Maximus</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; }
+    </style>
+</head>
+<body>
+
+<script>
+class StartScene extends Phaser.Scene {
+    constructor() { super('StartScene'); }
+    preload() { this.load.image('bg', 'https://labs.phaser.io/assets/skies/space3.png'); }
+    create() {
+        this.add.image(400, 300, 'bg');
+        this.add.text(400, 200, 'ΔΙΑΣΤΗΜΙΚΗ ΑΠΟΣΤΟΛΗ', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+        const startBtn = this.add.text(400, 400, 'ΕΝΑΡΞΗ', { fontSize: '24px', fill: '#0f0', backgroundColor: '#333', padding: 10 })
+            .setOrigin(0.5).setInteractive({ useHandCursor: true });
+        startBtn.on('pointerdown', () => this.scene.start('PlayScene'));
+    }
+}
+
+class PlayScene extends Phaser.Scene {
+    constructor() { super('PlayScene'); }
+
+    preload() {
+        this.load.image('ship', 'https://labs.phaser.io/assets/sprites/phaser-ship.png');
+        this.load.image('target', 'https://labs.phaser.io/assets/sprites/aqua_ball.png');
+        this.load.image('asteroid', 'https://labs.phaser.io/assets/sprites/asteroid-blue.png');
+    }
+
+    create() {
+        this.score = 0;
+        this.speed = 300;
+
+        this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '20px', fill: '#fff' });
+
+        this.player = this.physics.add.sprite(400, 300, 'ship');
+        this.player.setCollideWorldBounds(true);
+        this.player.setDrag(1000);
+
+        this.star = this.physics.add.sprite(600, 400, 'target');
+
+       
+        this.asteroids = this.physics.add.group();
+
+       
+        this.physics.add.overlap(this.player, this.star, this.collectStar, null, this);
+        this.physics.add.collider(this.player, this.asteroids, this.hitAsteroid, null, this);
+        
+      
+        this.physics.add.collider(this.asteroids, this.asteroids);
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+
+        this.spawnAsteroid();
+    }
+
+    spawnAsteroid() {
+        let x, y;
+        // Εξασφάλιση ότι δεν θα εμφανιστεί πάνω στον παίκτη
+        do {
+            x = Phaser.Math.Between(50, 750);
+            y = Phaser.Math.Between(50, 550);
+        } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 200);
+
+        let asteroid = this.asteroids.create(x, y, 'asteroid');
+        asteroid.setBounce(1);
+        asteroid.setCollideWorldBounds(true);
+        
+        // Βελτίωση: Κυκλικό collision body για να κυλάνε σωστά μεταξύ τους
+        asteroid.setCircle(asteroid.width / 2.5); 
+        
+        asteroid.setVelocity(Phaser.Math.Between(-150, 150), Phaser.Math.Between(-150, 150));
+    }
+
+    update() {
+        if (this.cursors.left.isDown) {
+            this.player.setVelocityX(-this.speed);
+            this.player.setFlipX(true);
+        } else if (this.cursors.right.isDown) {
+            this.player.setVelocityX(this.speed);
+            this.player.setFlipX(false);
+        } else {
+            this.player.setVelocityX(0);
+        }
+
+        if (this.cursors.up.isDown) {
+            this.player.setVelocityY(-this.speed);
+        } else if (this.cursors.down.isDown) {
+            this.player.setVelocityY(this.speed);
+        } else {
+            this.player.setVelocityY(0);
+        }
+    }
+
+    collectStar(player, star) {
+        this.score += 10;
+        this.scoreText.setText('Score: ' + this.score);
+
+        this.spawnAsteroid();
+
+        if (this.score >= 100) {
+            this.scene.start('EndScene');
+        } else {
+            star.setPosition(Phaser.Math.Between(50, 750), Phaser.Math.Between(50, 550));
+        }
+    }
+
+    hitAsteroid(player, asteroid) {
+        this.physics.pause();
+        player.setTint(0xff0000);
+        this.time.delayedCall(500, () => {
+            this.scene.start('StartScene');
+        });
+    }
+}
+
+class EndScene extends Phaser.Scene {
+    constructor() { super('EndScene'); }
+    create() {
+        this.add.rectangle(400, 300, 800, 600, 0x000000, 0.8);
+        this.add.text(400, 250, 'ΝΙΚΗ!', { fontSize: '40px', fill: '#ffffff' }).setOrigin(0.5);
+        const nextBtn = this.add.text(400, 450, 'Επόμενο Επίπεδο', { fontSize: '24px', fill: '#0f0' })
+            .setOrigin(0.5).setInteractive({ useHandCursor: true });
+        nextBtn.on('pointerdown', () => this.scene.start('Level2Scene'));
+    }
+}
+
+class Level2Scene extends Phaser.Scene {
+    constructor() { super('Level2Scene'); }
+    create() {
+        this.add.rectangle(400, 300, 800, 600, 0x001133);
+        this.add.text(400, 250, '🎉 ΣΥΓΧΑΡΗΤΗΡΙΑ ! 🎉', { fontSize: '40px', fill: '#ffffff' }).setOrigin(0.5);
+        const backBtn = this.add.text(400, 450, 'Ξανά από την αρχή', { fontSize: '24px', fill: '#0f0' })
+            .setOrigin(0.5).setInteractive({ useHandCursor: true });
+        backBtn.on('pointerdown', () => this.scene.start('StartScene'));
+    }
+}
+
+const config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    backgroundColor: '#1d1d1d',
+    physics: { default: 'arcade', arcade: { gravity: { y: 0 }, debug: false } },
+    scene: [StartScene, PlayScene, EndScene, Level2Scene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+
+</body>
+</html>
